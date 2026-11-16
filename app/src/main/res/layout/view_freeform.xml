@@ -3,7 +3,8 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    app:cardCornerRadius="16dp"
+    app:cardCornerRadius="@dimen/window_corner_radius"
+    app:cardElevation="@dimen/window_elevation"
     app:cardBackgroundColor="@color/color_surface">
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -16,79 +17,91 @@
             android:layout_width="0dp"
             android:layout_height="@dimen/top_bar_height"
             android:background="@drawable/color_background"
+            android:paddingHorizontal="14dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent">
+
             <ImageView
                 android:id="@+id/appIcon"
-                android:layout_width="24dp"
-                android:layout_height="16dp"
-                android:layout_marginStart="6dp"
                 android:tag="appIcon"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:scaleType="centerCrop"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent" />
+
             <TextView
                 android:id="@+id/packageName"
                 android:tag="packageName"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="2dp"
-                android:layout_marginEnd="6dp"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:textSize="11sp"
+                android:textSize="12sp"
+                android:fontFamily="sans-serif-medium"
                 android:textColor="@color/color_text"
                 app:layout_constraintStart_toEndOf="@id/appIcon"
-                app:layout_constraintEnd_toStartOf="@id/pinView"
+                app:layout_constraintEnd_toStartOf="@id/actionPillContainer"
+                app:layout_goneMarginEnd="8dp"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent" />
-            <View
-                android:id="@+id/spacer"
-                android:layout_width="0dp"
-                android:layout_height="0dp"
-                android:tag="spacer"
-                app:layout_constraintStart_toEndOf="@id/packageName"
-                app:layout_constraintEnd_toStartOf="@id/pinView"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent" />
-            <ImageView
-                android:id="@+id/pinView"
-                android:layout_width="24dp"
-                android:layout_height="16dp"
-                android:layout_marginEnd="6dp"
-                android:tag="pinView"
-                android:src="@drawable/ic_pin"
-                app:layout_constraintEnd_toStartOf="@id/maximizeView"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent" />
-            <ImageView
-                android:id="@+id/maximizeView"
-                android:layout_width="24dp"
-                android:layout_height="16dp"
-                android:layout_marginEnd="6dp"
-                android:tag="maximizeView"
-                android:src="@drawable/ic_maximize"
-                app:layout_constraintEnd_toStartOf="@id/minimizeView"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent" />
-            <ImageView
-                android:id="@+id/minimizeView"
-                android:layout_width="24dp"
-                android:layout_height="16dp"
-                android:layout_marginEnd="6dp"
-                android:tag="minimizeView"
-                android:src="@drawable/ic_minimize"
+
+            <LinearLayout
+                android:id="@+id/actionPillContainer"
+                android:tag="actionPillContainer"
+                android:layout_width="wrap_content"
+                android:layout_height="26dp"
+                android:background="@drawable/window_action_pill_bg"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="3dp"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent" />
+                app:layout_constraintBottom_toBottomOf="parent">
+
+                <ImageView
+                    android:id="@+id/pinView"
+                    android:tag="pinView"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:padding="4dp"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_pin"
+                    android:contentDescription="Pin app" />
+
+                <ImageView
+                    android:id="@+id/maximizeView"
+                    android:tag="maximizeView"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginStart="2dp"
+                    android:padding="4dp"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_maximize"
+                    android:contentDescription="Maximize" />
+
+                <ImageView
+                    android:id="@+id/minimizeView"
+                    android:tag="minimizeView"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginStart="2dp"
+                    android:padding="4dp"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_minimize"
+                    android:contentDescription="Close" />
+            </LinearLayout>
         </androidx.constraintlayout.widget.ConstraintLayout>
 
         <FrameLayout
             android:id="@+id/freeform_root"
+            android:tag="freeform_root"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:tag="freeform_root"
             app:layout_constraintBottom_toTopOf="@+id/bottomBar"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
@@ -96,40 +109,42 @@
 
         <FrameLayout
             android:id="@+id/veilView"
+            android:tag="veilView"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:tag="veilView"
             android:visibility="gone"
             app:layout_constraintBottom_toTopOf="@+id/bottomBar"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/topBarView" >
+            app:layout_constraintTop_toBottomOf="@+id/topBarView">
+
             <ImageView
                 android:id="@+id/veilAppIcon"
                 android:tag="veilAppIcon"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                android:layout_centerInParent="true"/>
+                android:layout_gravity="center"
+                android:contentDescription="App Icon" />
         </FrameLayout>
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/bottomBar"
+            android:tag="bottomBarView"
             android:layout_width="0dp"
             android:layout_height="@dimen/bottom_bar_height"
             android:background="@drawable/color_background"
             android:gravity="center"
-            android:tag="bottomBarView"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent">
 
             <LinearLayout
                 android:id="@+id/leftScale"
+                android:tag="leftScaleView"
                 android:layout_width="@dimen/scale_width"
                 android:layout_height="0dp"
                 android:gravity="center"
                 android:orientation="horizontal"
-                android:tag="leftScaleView"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent">
@@ -137,35 +152,62 @@
                 <View
                     android:layout_width="4dp"
                     android:layout_height="4dp"
-                    android:background="@drawable/bar_corners_bg"
-                    android:tag="leftScale" />
+                    android:background="@drawable/bar_corners_bg" />
             </LinearLayout>
+
+            <FrameLayout
+                android:id="@+id/gesturePillTouchView"
+                android:tag="gesturePillTouchView"
+                android:layout_width="120dp"
+                android:layout_height="0dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@+id/rightScale"
+                app:layout_constraintStart_toEndOf="@+id/leftScale"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <View
+                    android:id="@+id/gesturePillPlate"
+                    android:tag="gesturePillPlate"
+                    android:layout_width="92dp"
+                    android:layout_height="22dp"
+                    android:layout_gravity="center"
+                    android:alpha="0" />
+
+                <View
+                    android:id="@+id/gesturePill"
+                    android:tag="gesturePill"
+                    android:layout_width="64dp"
+                    android:layout_height="4dp"
+                    android:layout_gravity="center"
+                    android:alpha="0.85" />
+            </FrameLayout>
 
             <LinearLayout
                 android:id="@+id/arrowBack"
+                android:tag="arrowBack"
                 android:layout_width="0dp"
                 android:layout_height="0dp"
                 android:gravity="center"
                 android:orientation="horizontal"
-                android:tag="arrowBack"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toStartOf="@+id/guideline3"
                 app:layout_constraintStart_toStartOf="@+id/guideline2"
                 app:layout_constraintTop_toTopOf="parent">
 
-                <View
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:background="@drawable/ic_arrow_back" />
+                <ImageView
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:src="@drawable/ic_arrow_back"
+                    android:contentDescription="Back" />
             </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/rightScale"
+                android:tag="rightScaleView"
                 android:layout_width="@dimen/scale_width"
                 android:layout_height="0dp"
                 android:gravity="center"
                 android:orientation="horizontal"
-                android:tag="rightScaleView"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent">
@@ -173,8 +215,7 @@
                 <View
                     android:layout_width="4dp"
                     android:layout_height="4dp"
-                    android:background="@drawable/bar_corners_bg"
-                    android:tag="rightScale" />
+                    android:background="@drawable/bar_corners_bg" />
             </LinearLayout>
 
             <androidx.constraintlayout.widget.Guideline
@@ -182,18 +223,15 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                app:layout_constraintGuide_percent="0.33"
-                android:tag="guideline2" />
+                app:layout_constraintGuide_percent="0.33" />
 
             <androidx.constraintlayout.widget.Guideline
                 android:id="@+id/guideline3"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                app:layout_constraintGuide_percent="0.67"
-                android:tag="guideline3" />
+                app:layout_constraintGuide_percent="0.67" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
     </androidx.constraintlayout.widget.ConstraintLayout>
-
 </androidx.cardview.widget.CardView>

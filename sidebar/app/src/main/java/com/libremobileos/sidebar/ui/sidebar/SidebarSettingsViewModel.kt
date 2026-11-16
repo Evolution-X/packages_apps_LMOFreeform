@@ -11,6 +11,7 @@ import android.content.SharedPreferences
 import android.content.pm.LauncherApps
 import android.os.UserHandle
 import android.os.UserManager
+import android.provider.Settings
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -30,6 +31,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import java.text.Collator
 import java.util.Collections
@@ -56,7 +58,6 @@ class SidebarSettingsViewModel(private val application: Application) : AndroidVi
     private val userProfileReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             logger.d("userProfileReceiver received ${intent.action}")
-            allAppList.clear()
             initAllAppList()
         }
     }
@@ -69,6 +70,7 @@ class SidebarSettingsViewModel(private val application: Application) : AndroidVi
             sp = appContext.getSharedPreferences(SidebarApplication.CONFIG, Context.MODE_PRIVATE)
 
             initAllAppList()
+            observeSidebarApps()
             appContext.registerReceiverAsUser(
                 userProfileReceiver,
                 UserHandle.CURRENT,
@@ -97,11 +99,58 @@ class SidebarSettingsViewModel(private val application: Application) : AndroidVi
             .apply()
 
     fun addSidebarApp(appInfo: SidebarAppInfo) {
-        repository.insertSidebarApp(appInfo.packageName, appInfo.activityName, appInfo.userId)
+        updateAppPinnedState(appInfo.packageName, appInfo.activityName, appInfo.userId, true)
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.insertSidebarApp(appInfo.packageName, appInfo.activityName, appInfo.userId)
+        }
     }
 
     fun deleteSidebarApp(appInfo: SidebarAppInfo) {
-        repository.deleteSidebarApp(appInfo.packageName, appInfo.activityName, appInfo.userId)
+        updateAppPinnedState(appInfo.packageName, appInfo.activityName, appInfo.userId, false)
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.deleteSidebarApp(appInfo.packageName, appInfo.activityName, appInfo.userId)
+        }
+    }
+
+    private fun updateAppPinnedState(packageName: String, activityName: String, userId: Int, isPinned: Boolean) {
+        synchronized(allAppList) {
+            val index = allAppList.indexOfFirst {
+                it.packageName == packageName && it.activityName == activityName && it.userId == userId
+            }
+            if (index != -1) {
+                val current = allAppList[index]
+                if (current.isSidebarApp != isPinned) {
+                    allAppList[index] = current.copy(isSidebarApp = isPinned)
+                    _appList.value = ArrayList(allAppList)
+                }
+            }
+        }
+    }
+
+    private fun observeSidebarApps() {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.getAllSidebarAppsByFlow().collect { sidebarAppEntities ->
+                val pinnedSet = sidebarAppEntities?.map {
+                    Triple(it.packageName, it.activityName, it.userId)
+                }?.toSet() ?: emptySet()
+
+                synchronized(allAppList) {
+                    if (allAppList.isEmpty()) return@collect
+                    var changed = false
+                    for (i in allAppList.indices) {
+                        val app = allAppList[i]
+                        val isPinned = pinnedSet.contains(Triple(app.packageName, app.activityName, app.userId))
+                        if (app.isSidebarApp != isPinned) {
+                            allAppList[i] = app.copy(isSidebarApp = isPinned)
+                            changed = true
+                        }
+                    }
+                    if (changed) {
+                        _appList.value = ArrayList(allAppList)
+                    }
+                }
+            }
+        }
     }
 
     fun getPredictedAppsEnabled(): Boolean =
@@ -120,19 +169,42 @@ class SidebarSettingsViewModel(private val application: Application) : AndroidVi
             .putBoolean(SidebarMonitorService.KEY_AUTO_ENABLE_SELECTED_APPS, enabled)
             .apply()
 
+    fun getFreeformControlMode(): String =
+        Settings.System.getString(
+            appContext.contentResolver,
+            FREEFORM_CONTROL_MODE
+        )?.let {
+            when {
+                it.equals(FREEFORM_BUTTON_MODE, ignoreCase = true) ||
+                        it == LEGACY_BUTTON_MODE -> FREEFORM_BUTTON_MODE
+                it.equals(FREEFORM_GESTURE_MODE, ignoreCase = true) ||
+                        it == LEGACY_GESTURE_MODE -> FREEFORM_GESTURE_MODE
+                else -> FREEFORM_GESTURE_MODE
+            }
+        } ?: FREEFORM_GESTURE_MODE
+
+    fun setFreeformControlMode(mode: String) {
+        Settings.System.putString(
+            appContext.contentResolver,
+            FREEFORM_CONTROL_MODE,
+            mode
+        )
+    }
+
     private fun initAllAppList() {
         viewModelScope.launch(Dispatchers.IO) {
+            val list = mutableListOf<SidebarAppInfo>()
+            val sidebarAppList = repository.getAllSidebarWithoutLiveData()
             userManager.getSidebarFilteredUsers().forEach { userInfo ->
                 logger.d("initAllAppList for user $userInfo")
-                val list = launcherApps.getActivityList(null, userInfo.userHandle)
-                val sidebarAppList = repository.getAllSidebarWithoutLiveData()
+                val activityList = launcherApps.getActivityList(null, userInfo.userHandle)
 
-                list.forEach { info ->
+                activityList.forEach { info ->
                     val component = info.componentName
                     if (!application.isResizeableActivity(component)) {
                         logger.d("activity not resizeable, skipped $component")
                     } else {
-                        allAppList.add(
+                        list.add(
                             SidebarAppInfo(
                                 "${info.label}${userInfo.suffix}",
                                 info.getBadgedIcon(0),
@@ -150,13 +222,23 @@ class SidebarSettingsViewModel(private val application: Application) : AndroidVi
                 }
             }
 
-            Collections.sort(allAppList, appComparator)
-            _appList.value = allAppList
-            logger.d("emitted allAppList: $allAppList")
+            Collections.sort(list, appComparator)
+            synchronized(allAppList) {
+                allAppList.clear()
+                allAppList.addAll(list)
+                _appList.value = ArrayList(allAppList)
+            }
+            logger.d("emitted allAppList: ${allAppList.size} apps")
         }
     }
 
     companion object {
+        private const val FREEFORM_CONTROL_MODE = "freeform_control_mode"
+        const val FREEFORM_BUTTON_MODE = "Button"
+        const val FREEFORM_GESTURE_MODE = "Gesture"
+        private const val LEGACY_BUTTON_MODE = "0"
+        private const val LEGACY_GESTURE_MODE = "1"
+
         val Factory = viewModelFactory {
             initializer {
                 SidebarSettingsViewModel(

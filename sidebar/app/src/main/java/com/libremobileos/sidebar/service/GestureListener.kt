@@ -31,6 +31,7 @@ class GestureListener(private val callback: Callback) : MGestureManager.MGesture
         velocity: Float
     ): Boolean {
         if (null != gestureEvent) {
+            longPressHandler.removeCallbacks(longPressRunnable)
             if (gestureEvent == MGestureManager.GestureEvent.SINGLE_GINGER_LEFT_SLIP || gestureEvent == MGestureManager.GestureEvent.SINGLE_GINGER_RIGHT_SLIP) {
                 callback.onSwipeToOpen()
             }
@@ -58,8 +59,10 @@ class GestureListener(private val callback: Callback) : MGestureManager.MGesture
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 longPressHandler.removeCallbacks(longPressRunnable)
-                isLongPress = false
-                callback.endMoveSideline()
+                if (isLongPress) {
+                    isLongPress = false
+                    callback.endMoveSideline()
+                }
             }
         }
     }

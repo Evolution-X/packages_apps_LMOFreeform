@@ -8,26 +8,29 @@
     <string name="sidebar_app_setting_label">Pinned apps</string>
     <string name="sidebar_settings_description">Open sidebar settings</string>
     <string name="sidebar_predicted_apps">Show app suggestions</string>
-    <string name="sidebar_predicted_apps_summary">Show upto 6 suggested apps below pinned apps</string>
-    <string name="sidebar_auto_enable_selected_apps">Auto enable sidebar for selected apps</string>
+    <string name="sidebar_predicted_apps_summary">Show up to 6 suggested apps below pinned apps</string>
+    <string name="sidebar_auto_enable_selected_apps">Auto-enable sidebar for selected apps</string>
     <string name="sidebar_auto_enable_selected_apps_summary">Automatically show sidebar when configured apps are launched</string>
     <string name="sidebar_per_app_config">Configure apps</string>
-    <string name="sidebar_per_app_config_summary">Select apps that should automatically enable sidebar</string>
+    <string name="sidebar_per_app_config_summary">Select apps that should automatically enable the sidebar</string>
+    <string name="sidebar_freeform_control_mode">Freeform control mode</string>
+    <string name="sidebar_freeform_control_gesture">Gesture</string>
+    <string name="sidebar_freeform_control_button">Button</string>
 
     <!-- Sidebar customization -->
     <string name="sidebar_customization_title">Sidebar customization</string>
 
     <!-- Sections -->
-    <string name="sidebar_section_slider">Slider settings</string>
+    <string name="sidebar_section_slider">Handle settings</string>
     <string name="sidebar_section_layout">Layout settings</string>
     <string name="sidebar_section_visual">Visual effects</string>
     <string name="sidebar_section_miscellaneous">Miscellaneous</string>
 
     <!-- Slider settings -->
-    <string name="sidebar_transparency_value">Slider transparency: %1$.2f</string>
-    <string name="sidebar_length_value">Slider length: %1$d</string>
-    <string name="sidebar_width_value">Slider width: %1$d</string>
-    <string name="sidebar_position_label">Slider position</string>
+    <string name="sidebar_transparency_value">Handle transparency: %1$.2f</string>
+    <string name="sidebar_length_value">Handle length: %1$d</string>
+    <string name="sidebar_width_value">Handle width: %1$d</string>
+    <string name="sidebar_position_label">Handle position</string>
     <string name="sidebar_left">Left</string>
     <string name="sidebar_right">Right</string>
 
@@ -51,9 +54,61 @@
     
     <!-- Miscellaneous -->
     <string name="sidebar_tap_to_open_title">Open drawer on tap</string>
-    <string name="sidebar_tap_to_open_summary">Open the sidebar drawer when the slider is tapped</string>
+    <string name="sidebar_tap_to_open_summary">Open the sidebar drawer when the handle is tapped</string>
     <string name="sidebar_swipe_to_open_title">Open drawer on swipe</string>
-    <string name="sidebar_swipe_to_open_summary">Open the sidebar drawer when the slider is swiped horizontally</string>
+    <string name="sidebar_swipe_to_open_summary">Open the sidebar drawer when the handle is swiped horizontally</string>
     <string name="sidebar_hide_on_gamespace_title">Hide when GameSpace is active</string>
-    <string name="sidebar_hide_on_gamespace_summary">Automatically hide the sidebar slider when a game is running with GameSpace</string>
+    <string name="sidebar_hide_on_gamespace_summary">Automatically hide the sidebar handle when GameSpace is active</string>
+
+    <!-- General actions & statuses -->
+    <string name="close">Close</string>
+    <string name="action_edit">Edit</string>
+    <string name="action_configure">Configure</string>
+    <string name="action_unpin">Unpin</string>
+    <string name="action_clear_search">Clear search</string>
+    <string name="status_running">Running</string>
+    <string name="status_off">Off</string>
+    <string name="apps_count_badge">%1$d apps</string>
+    <string name="sidebar_search_apps_placeholder">Search apps</string>
+
+    <!-- All applications grid -->
+    <string name="all_apps_title">All applications</string>
+    <string name="all_apps_search_placeholder">Search apps to launch in freeform</string>
+    <string name="all_apps_no_matching">No apps matching \"%1$s\"</string>
+    <string name="all_apps_no_matching_subtitle">Try a different search term or check spelling</string>
+
+    <!-- Sidebar settings & dock shelf -->
+    <string name="sidebar_customization_subtitle">Handle length, layout columns, opacity &amp; corners</string>
+    <string name="sidebar_search_apps_to_pin">Search apps to pin</string>
+    <string name="sidebar_filter_all">All (%1$d)</string>
+    <string name="sidebar_filter_pinned">Pinned (%1$d)</string>
+    <string name="sidebar_no_apps_found_matching">No apps found matching \"%1$s\"</string>
+    <string name="sidebar_no_pinned_apps_yet">No pinned apps yet</string>
+    <string name="sidebar_active_dock_title">Active dock</string>
+    <string name="sidebar_active_dock_subtitle">Apps pinned to your floating sidebar</string>
+    <string name="sidebar_pinned_badge_label">pinned</string>
+    <string name="sidebar_no_apps_pinned_desc">No apps pinned yet. Toggle apps below to build your dock.</string>
+    <string name="sidebar_pinned_to_sidebar">Pinned to sidebar</string>
+
+    <!-- Per-app configuration -->
+    <string name="sidebar_per_app_badge_count">%1$d of %2$d enabled</string>
+    <string name="sidebar_per_app_search_placeholder">Search apps to auto-enable</string>
+    <string name="sidebar_per_app_filter_all">All (%1$d)</string>
+    <string name="sidebar_per_app_filter_enabled">Enabled (%1$d)</string>
+    <string name="sidebar_per_app_no_matching">No apps matching \"%1$s\"</string>
+    <string name="sidebar_per_app_none_enabled">No apps enabled yet</string>
+    <string name="sidebar_per_app_no_matching_subtitle">Try a different search term</string>
+    <string name="sidebar_per_app_none_enabled_subtitle">Toggle apps on the All tab to auto-enable the sidebar</string>
+    <string name="sidebar_per_app_item_active">Auto-enable active</string>
+
+    <!-- Customization badges & live preview -->
+    <string name="badge_layout">Layout</string>
+    <string name="badge_handle">Handle</string>
+    <string name="badge_effects">Effects</string>
+    <string name="preview_title">Preview</string>
+    <string name="preview_edge_left">Left edge</string>
+    <string name="preview_edge_right">Right edge</string>
+    <string name="unit_px">%1$d px</string>
+    <string name="unit_dp">%1$d dp</string>
+    <string name="unit_percent">%1$d%%</string>
 </resources>

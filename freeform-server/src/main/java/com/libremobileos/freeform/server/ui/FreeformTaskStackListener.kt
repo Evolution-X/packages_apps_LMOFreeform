@@ -3,13 +3,8 @@ package com.libremobileos.freeform.server.ui
 import android.app.ActivityManager
 import android.app.ITaskStackListener
 import android.content.ComponentName
-import android.os.Build
-import android.util.Slog
 import android.view.Display
-import android.view.Surface
 import com.libremobileos.freeform.server.Debug.dlog
-import com.libremobileos.freeform.server.LMOFreeformServiceHolder
-import com.libremobileos.freeform.server.SystemServiceHolder
 import kotlin.math.max
 import kotlin.math.min
 
@@ -124,7 +119,10 @@ class FreeformTaskStackListener(
                     window.freeformConfig.hangUpHeight = minHangUp
                 }
             }
-            window.handler.post { window.changeOrientation() }
+            window.handler.post {
+                window.changeOrientation()
+                window.makeSureFreeformInScreen()
+            }
         }
     }
 
