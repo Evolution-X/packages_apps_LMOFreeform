@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.core.view.WindowCompat
 import com.android.settingslib.spa.framework.theme.SettingsTheme
+import com.libremobileos.sidebar.ui.theme.SidebarTheme
 
 /**
  * @author KindBrave
@@ -19,8 +20,10 @@ class SidebarSettingsActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         setContent {
-            SettingsTheme {
-                SidebarSettingsPage(viewModel = viewModel)
+            SidebarTheme {
+                SettingsTheme {
+                    SidebarSettingsPage(viewModel = viewModel)
+                }
             }
         }
     }

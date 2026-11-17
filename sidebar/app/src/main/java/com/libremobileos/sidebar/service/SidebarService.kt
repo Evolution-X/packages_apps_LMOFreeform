@@ -4,10 +4,8 @@ import android.annotation.SuppressLint
 import android.app.IActivityManager
 import android.app.Service
 import android.app.UserSwitchObserver
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.content.res.Configuration
 import android.graphics.PixelFormat
@@ -16,10 +14,11 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.ServiceManager
 import android.os.UserHandle
+import android.view.HapticFeedbackConstants
 import android.view.View
 import android.view.WindowManager
 import android.view.WindowManager.LayoutParams
-import android.widget.Toast
+import android.view.animation.PathInterpolator
 import androidx.appcompat.content.res.AppCompatResources
 import com.android.internal.policy.SystemBarUtils
 import com.libremobileos.sidebar.R
@@ -52,6 +51,14 @@ class SidebarService : Service(), SharedPreferences.OnSharedPreferenceChangeList
             setOnTouchListener { _, event ->
                 gestureManager.onTouchEvent(event)
                 true
+            }
+            addOnLayoutChangeListener { v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+                val w = right - left
+                val h = bottom - top
+                if (w > 0 && h > 0 && (w != oldRight - oldLeft || h != oldBottom - oldTop)) {
+                    v.systemGestureExclusionRects = listOf(Rect(0, 0, w, h))
+                    logger.d("sideLineView layout changed: exclusionRect=(0, 0, $w, $h)")
+                }
             }
         }
     }
@@ -242,6 +249,7 @@ class SidebarService : Service(), SharedPreferences.OnSharedPreferenceChangeList
                     layoutParams.height = getSliderLength()
                     updateSidelinePosition()
                     updateViewLayout()
+                    updateSystemGestureExclusion()
                 }
             }
             SIDEBAR_COLUMNS, SIDEBAR_ICON_SIZE, SIDEBAR_ICON_PADDING, SIDEBAR_COLUMN_SPACING, SIDEBAR_CORNER_RADIUS, SIDEBAR_BACKGROUND_TRANSPARENCY, SIDEBAR_SHOW_SHADOW -> {
@@ -254,6 +262,7 @@ class SidebarService : Service(), SharedPreferences.OnSharedPreferenceChangeList
     }
 
     override fun showSidebar() {
+        if (isShowingSidebar) return
         logger.d("showSidebar")
         sidebarView.showView()
         isShowingSidebar = true
@@ -261,14 +270,17 @@ class SidebarService : Service(), SharedPreferences.OnSharedPreferenceChangeList
     }
 
     override fun onSwipeToOpen() {
+        if (isShowingSidebar) return
         if (sharedPrefs.getBoolean(SIDEBAR_SWIPE_TO_OPEN, true)) {
             logger.d("onSwipeToOpen: showing sidebar")
+            sideLineView.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
             showSidebar()
         }
     }
 
     override fun beginMoveSideline() {
         logger.d("beginMoveSideline")
+        sideLineView.performHapticFeedback(HapticFeedbackConstants.GESTURE_START)
         layoutParams.apply {
             width = SIDELINE_MOVE_WIDTH
         }
@@ -293,11 +305,13 @@ class SidebarService : Service(), SharedPreferences.OnSharedPreferenceChangeList
 
     override fun endMoveSideline() {
         logger.d("endMoveSideline")
+        sideLineView.performHapticFeedback(HapticFeedbackConstants.GESTURE_END)
         layoutParams.apply {
             width = getSliderWidth()
             y = constrainY(y)
         }
         updateViewLayout()
+        updateSystemGestureExclusion()
         setIntSp(SIDELINE_POSITION_X, sidelinePositionX)
         if (isPortrait) {
             setIntSp(SIDELINE_POSITION_Y_PORTRAIT, layoutParams.y)
@@ -307,8 +321,10 @@ class SidebarService : Service(), SharedPreferences.OnSharedPreferenceChangeList
     }
 
     override fun onSingleTapUp() {
+        if (isShowingSidebar) return
         if (sharedPrefs.getBoolean(SIDEBAR_TAP_TO_OPEN, false)) {
             logger.d("onSingleTapUp: showing sidebar")
+            sideLineView.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
             showSidebar()
         }
     }
@@ -334,6 +350,19 @@ class SidebarService : Service(), SharedPreferences.OnSharedPreferenceChangeList
 
     private fun getSliderWidth(): Int {
         return sharedPrefs.getInt(SLIDER_WIDTH, SIDELINE_WIDTH)
+    }
+
+    private fun updateSystemGestureExclusion() {
+        val width = getSliderWidth()
+        val height = getSliderLength()
+        if (width > 0 && height > 0) {
+            sideLineView.post {
+                runCatching {
+                    sideLineView.systemGestureExclusionRects = listOf(Rect(0, 0, width, height))
+                    logger.d("updateSystemGestureExclusion: rect=(0, 0, $width, $height)")
+                }
+            }
+        }
     }
 
     /**
@@ -366,11 +395,6 @@ class SidebarService : Service(), SharedPreferences.OnSharedPreferenceChangeList
         val transparency = sharedPrefs.getFloat(SLIDER_TRANSPARENCY, 1.0f)
         sideLineView.alpha = transparency
 
-        val currentWidth = getSliderWidth()
-        sideLineView.setSystemGestureExclusionRects(
-            listOf(Rect(0, 0, currentWidth, getSliderLength()))
-        )
-
         updateSidelinePosition()
 
         handler.post {
@@ -378,6 +402,7 @@ class SidebarService : Service(), SharedPreferences.OnSharedPreferenceChangeList
                 windowManager.addView(sideLineView, layoutParams)
                 viewModel.registerCallbacks()
                 isShowingSideline = true
+                updateSystemGestureExclusion()
             }.onFailure { e ->
                 logger.e("failed to add sideline view: ", e)
             }
@@ -469,12 +494,22 @@ class SidebarService : Service(), SharedPreferences.OnSharedPreferenceChangeList
 
     private fun animateHideSideline() {
         logger.d("animateHideSideline")
-        sideLineView.animate().translationX(sidelinePositionX * 1.0f * getSliderWidth()).setDuration(300).start()
+        val effectsInterpolator = PathInterpolator(0.34f, 0.80f, 0.34f, 1.00f)
+        sideLineView.animate()
+            .translationX(sidelinePositionX * 1.0f * getSliderWidth())
+            .setInterpolator(effectsInterpolator)
+            .setDuration(200)
+            .start()
     }
 
     private fun animateShowSideline() {
         logger.d("animateShowSideline")
-        sideLineView.animate().translationX(0f).setDuration(300).start()
+        val spatialInterpolator = PathInterpolator(0.38f, 1.21f, 0.22f, 1.00f)
+        sideLineView.animate()
+            .translationX(0f)
+            .setInterpolator(spatialInterpolator)
+            .setDuration(400)
+            .start()
     }
 
     private fun setIntSp(name: String, value: Int) {

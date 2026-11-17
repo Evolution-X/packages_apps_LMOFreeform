@@ -11,6 +11,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.view.WindowManager.LayoutParams
+import android.view.animation.PathInterpolator
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.ui.Modifier
@@ -101,7 +102,11 @@ class SidebarView(
         }
 
         updateSidebarPosition()
-        composeView.translationX = sidebarPositionX * 1.0f * 200
+        // M3 expressive default spatial spring curve (overshoot y1 = 1.21).
+        val expressiveSpatialInterpolator = PathInterpolator(0.38f, 1.21f, 0.22f, 1.00f)
+        val initialTranslation = sidebarPositionX * 1.0f * 240
+        composeView.translationX = initialTranslation
+        composeView.alpha = 0f
         composeView.setOnTouchListener { view, event ->
             logger.d("composeView: $event")
             if (event.action == MotionEvent.ACTION_UP) {
@@ -115,7 +120,12 @@ class SidebarView(
             runCatching {
                 lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
                 windowManager.addView(composeView, layoutParams)
-                composeView.animate().translationX(0f).setDuration(300).start()
+                composeView.animate()
+                    .translationX(0f)
+                    .alpha(1f)
+                    .setInterpolator(expressiveSpatialInterpolator)
+                    .setDuration(500)
+                    .start()
                 isShowing = true
             }.onFailure {
                 logger.e("failed to add sidebar view: ", it)
@@ -129,13 +139,35 @@ class SidebarView(
         logger.d("removeView")
         handler.post {
             runCatching {
-                lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
-                windowManager.removeViewImmediate(composeView)
-                callback.onRemove()
-                isShowing = false
+                if (force) {
+                    cleanupAndRemoveView()
+                } else {
+                    // M3 expressive default effects curve.
+                    val expressiveEffectsInterpolator = PathInterpolator(0.34f, 0.80f, 0.34f, 1.00f)
+                    val exitTranslation = sidebarPositionX * 1.0f * 240
+                    composeView.animate()
+                        .translationX(exitTranslation)
+                        .alpha(0f)
+                        .setInterpolator(expressiveEffectsInterpolator)
+                        .setDuration(200)
+                        .withEndAction {
+                            cleanupAndRemoveView()
+                        }
+                        .start()
+                }
             }.onFailure {
                 logger.e("failed to remove sidebar view: $it")
+                cleanupAndRemoveView()
             }
+        }
+    }
+
+    private fun cleanupAndRemoveView() {
+        runCatching {
+            lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
+            windowManager.removeViewImmediate(composeView)
+            callback.onRemove()
+            isShowing = false
         }
     }
 

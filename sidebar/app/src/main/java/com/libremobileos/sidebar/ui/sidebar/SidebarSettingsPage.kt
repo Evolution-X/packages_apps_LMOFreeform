@@ -1,51 +1,76 @@
 /*
  * SPDX-FileCopyrightText: 2026 kenway214
+ * SPDX-FileCopyrightText: 2026 zylhdrXP
  * SPDX-License-Identifier: Apache-2.0
  */
- 
+
 package com.libremobileos.sidebar.ui.sidebar
 
-import android.content.Context
 import android.content.Intent
-import androidx.compose.foundation.Image
+import androidx.compose.animation.*
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import com.android.settingslib.spa.framework.compose.rememberDrawablePainter
-import com.android.settingslib.spa.framework.theme.SettingsDimension
-import com.android.settingslib.spa.widget.preference.MainSwitchPreference
-import com.android.settingslib.spa.widget.preference.Preference
-import com.android.settingslib.spa.widget.preference.PreferenceModel
-import com.android.settingslib.spa.widget.preference.SwitchPreference
-import com.android.settingslib.spa.widget.preference.SwitchPreferenceModel
 import com.android.settingslib.spa.widget.scaffold.SettingsScaffold
-import com.android.settingslib.spa.widget.ui.Category
 import com.libremobileos.sidebar.R
-import com.libremobileos.sidebar.bean.SidebarAppInfo
 import com.libremobileos.sidebar.service.SidebarMonitorService
+import com.libremobileos.sidebar.ui.theme.M3ExpressiveTokens
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun SidebarSettingsPage(
     viewModel: SidebarSettingsViewModel
 ) {
     val context = LocalContext.current
-    var mainChecked = rememberSaveable { mutableStateOf(viewModel.getSidebarEnabled()) }
+    val haptics = rememberExpressiveHaptics()
+    var mainChecked by rememberSaveable { mutableStateOf(viewModel.getSidebarEnabled()) }
+    var autoEnableChecked by rememberSaveable { mutableStateOf(viewModel.getAutoEnableSelectedAppsEnabled()) }
+    var predictedAppsChecked by rememberSaveable { mutableStateOf(viewModel.getPredictedAppsEnabled()) }
+    var freeformMode by rememberSaveable { mutableStateOf(viewModel.getFreeformControlMode()) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    var filterMode by rememberSaveable { mutableStateOf(0) } // 0 = All apps, 1 = Pinned only
+
+    val sidebarApps by viewModel.appListFlow.collectAsState()
+    val pinnedApps = remember(sidebarApps) { sidebarApps.filter { it.isSidebarApp } }
+    val pinnedCount = pinnedApps.size
+
+    val filteredApps = remember(sidebarApps, searchQuery, filterMode) {
+        val baseList = if (filterMode == 1) {
+            sidebarApps.filter { it.isSidebarApp }
+        } else {
+            sidebarApps
+        }
+        if (searchQuery.isBlank()) {
+            baseList
+        } else {
+            baseList.filter {
+                it.label.contains(searchQuery, ignoreCase = true) ||
+                it.packageName.contains(searchQuery, ignoreCase = true)
+            }
+        }
+    }
 
     SettingsScaffold(
         title = stringResource(R.string.sidebar_label),
         actions = {
             IconButton(onClick = {
-                val intent = Intent(context, SidebarCustomizationActivity::class.java)
-                context.startActivity(intent)
+                haptics.contextClick()
+                context.startActivity(Intent(context, SidebarCustomizationActivity::class.java))
             }) {
                 Icon(
                     imageVector = Icons.Default.Settings,
@@ -54,143 +79,222 @@ fun SidebarSettingsPage(
             }
         }
     ) { paddingValues ->
-        Column(
-            modifier = Modifier.padding(paddingValues)
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues),
+            contentPadding = PaddingValues(bottom = 32.dp)
         ) {
-            MainSwitchPreference(object : SwitchPreferenceModel {
-                override val title = stringResource(R.string.enable_sideline)
-                override val checked = { mainChecked.value }
-                override val changeable = { viewModel.isEnabled }
-                override val onCheckedChange: (Boolean) -> Unit = {
-                    mainChecked.value = it
-                    viewModel.setSidebarEnabled(it)
-                    val intent = Intent(context, SidebarMonitorService::class.java)
-                    if (it || viewModel.getAutoEnableSelectedAppsEnabled()) {
-                        context.startService(intent)
-                    } else {
-                        context.stopService(intent)
-                    }
-                }
-            })
-            
-            val autoEnableChecked = remember { mutableStateOf(viewModel.getAutoEnableSelectedAppsEnabled()) }
-            val autoEnableSummary = stringResource(R.string.sidebar_auto_enable_selected_apps_summary)
-            SwitchPreference(
-                model = object : SwitchPreferenceModel {
-                    override val title = stringResource(R.string.sidebar_auto_enable_selected_apps)
-                    override val summary = { autoEnableSummary }
-                    override val checked = { autoEnableChecked.value }
-                    override val changeable = { viewModel.isEnabled }
-                    override val onCheckedChange: (Boolean) -> Unit = {
-                        autoEnableChecked.value = it
-                        viewModel.setAutoEnableSelectedAppsEnabled(it)
+            item {
+                Spacer(modifier = Modifier.height(4.dp))
+                HeroMasterSwitchCard(
+                    checked = mainChecked,
+                    enabled = viewModel.isEnabled,
+                    onCheckedChange = { checked ->
+                        mainChecked = checked
+                        viewModel.setSidebarEnabled(checked)
                         val intent = Intent(context, SidebarMonitorService::class.java)
-                        if (it || mainChecked.value) {
+                        if (checked || autoEnableChecked) {
                             context.startService(intent)
                         } else {
                             context.stopService(intent)
                         }
                     }
-                }
-            )
-            
-            if (autoEnableChecked.value) {
-                val perAppConfigSummary = stringResource(R.string.sidebar_per_app_config_summary)
-                Preference(
-                    model = object : PreferenceModel {
-                        override val title = stringResource(R.string.sidebar_per_app_config)
-                        override val summary = { perAppConfigSummary }
-                        override val onClick = {
-                            val intent = Intent(context, SidebarPerAppConfigActivity::class.java)
-                            context.startActivity(intent)
-                        }
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+            }
+
+            item {
+                CustomizationGatewayCard(
+                    onClick = {
+                        context.startActivity(Intent(context, SidebarCustomizationActivity::class.java))
                     }
                 )
+                Spacer(modifier = Modifier.height(14.dp))
             }
-            
-            if (mainChecked.value) {
-                SidebarSettingSwitch(
-                    title = stringResource(R.string.sidebar_predicted_apps),
-                    summary = stringResource(R.string.sidebar_predicted_apps_summary),
-                    isChecked = viewModel.getPredictedAppsEnabled(),
-                    onCheckedChange = { viewModel.setPredictedAppsEnabled(it) }
-                )
-            }
-            
-            if (mainChecked.value) {
-                SidebarAppList(viewModel)
-            }
-        }
-    }
-}
 
-@Composable
-fun SidebarAppList(
-    viewModel: SidebarSettingsViewModel
-) {
-    val sidebarApps by viewModel.appListFlow.collectAsState()
-    Category(
-        title = stringResource(R.string.sidebar_app_setting_label)
-    ) {
-        LazyColumn {
-            items(sidebarApps) { appInfo ->
-                SidebarAppListItem(
-                    appInfo = appInfo,
-                    onCheckedChange = { isChecked ->
-                        if (isChecked) {
-                            viewModel.addSidebarApp(appInfo)
+            item {
+                FreeformModeCard(
+                    currentMode = freeformMode,
+                    onModeChange = { mode ->
+                        freeformMode = mode
+                        viewModel.setFreeformControlMode(mode)
+                    }
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+            }
+
+            item {
+                SmartAutomationCard(
+                    mainEnabled = mainChecked,
+                    autoEnableChecked = autoEnableChecked,
+                    onAutoEnableChange = { checked ->
+                        autoEnableChecked = checked
+                        viewModel.setAutoEnableSelectedAppsEnabled(checked)
+                        val intent = Intent(context, SidebarMonitorService::class.java)
+                        if (checked || mainChecked) {
+                            context.startService(intent)
                         } else {
-                            viewModel.deleteSidebarApp(appInfo)
+                            context.stopService(intent)
                         }
+                    },
+                    predictedAppsChecked = predictedAppsChecked,
+                    onPredictedAppsChange = { checked ->
+                        predictedAppsChecked = checked
+                        viewModel.setPredictedAppsEnabled(checked)
+                    },
+                    onConfigureAppsClick = {
+                        context.startActivity(Intent(context, SidebarPerAppConfigActivity::class.java))
                     }
                 )
+                if (mainChecked) {
+                    Spacer(modifier = Modifier.height(14.dp))
+                }
+            }
+
+            item {
+                AnimatedVisibility(
+                    visible = mainChecked,
+                    enter = expandVertically(animationSpec = M3ExpressiveTokens.spatialDefault()) +
+                            fadeIn(animationSpec = M3ExpressiveTokens.effectsDefault()),
+                    exit = shrinkVertically(animationSpec = M3ExpressiveTokens.spatialDefault()) +
+                            fadeOut(animationSpec = M3ExpressiveTokens.effectsDefault())
+                ) {
+                    Column {
+                        PinnedAppsDockShelf(
+                            pinnedApps = pinnedApps,
+                            onUnpin = { appInfo ->
+                                viewModel.deleteSidebarApp(appInfo)
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+                    }
+                }
+            }
+
+            item {
+                AnimatedVisibility(
+                    visible = mainChecked,
+                    enter = expandVertically(animationSpec = M3ExpressiveTokens.spatialDefault()) +
+                            fadeIn(animationSpec = M3ExpressiveTokens.effectsDefault()),
+                    exit = shrinkVertically(animationSpec = M3ExpressiveTokens.spatialDefault()) +
+                            fadeOut(animationSpec = M3ExpressiveTokens.effectsDefault())
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        SectionHeaderWithBadge(
+                            title = stringResource(R.string.sidebar_app_setting_label),
+                            badgeLabel = stringResource(R.string.apps_count_badge, sidebarApps.size),
+                            badgeColor = MaterialTheme.colorScheme.primaryContainer,
+                            badgeContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+
+                        M3ExpressiveSearchBar(
+                            query = searchQuery,
+                            onQueryChange = { searchQuery = it },
+                            placeholderText = stringResource(R.string.sidebar_search_apps_to_pin)
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            ExpressiveFilterChip(
+                                selected = filterMode == 0,
+                                onClick = {
+                                    if (filterMode != 0) {
+                                        haptics.segmentTick()
+                                        filterMode = 0
+                                    }
+                                },
+                                label = stringResource(R.string.sidebar_filter_all, sidebarApps.size)
+                            )
+                            ExpressiveFilterChip(
+                                selected = filterMode == 1,
+                                onClick = {
+                                    if (filterMode != 1) {
+                                        haptics.segmentTick()
+                                        filterMode = 1
+                                    }
+                                },
+                                label = stringResource(R.string.sidebar_filter_pinned, pinnedCount)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                    }
+                }
+            }
+
+            if (mainChecked) {
+                if (filteredApps.isEmpty()) {
+                    item {
+                        Surface(
+                            color = MaterialTheme.colorScheme.surfaceContainerLow,
+                            shape = M3ExpressiveTokens.CornerLarge,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(32.dp)
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = if (searchQuery.isNotEmpty()) {
+                                        stringResource(R.string.sidebar_no_apps_found_matching, searchQuery)
+                                    } else {
+                                        stringResource(R.string.sidebar_no_pinned_apps_yet)
+                                    },
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    itemsIndexed(
+                        items = filteredApps,
+                        key = { _, it -> "${it.packageName}_${it.activityName}_${it.userId}" }
+                    ) { index, appInfo ->
+                        val isFirst = index == 0
+                        val isLast = index == filteredApps.lastIndex
+                        val position = when {
+                            isFirst && isLast -> ConnectedPosition.Single
+                            isFirst -> ConnectedPosition.Top
+                            isLast -> ConnectedPosition.Bottom
+                            else -> ConnectedPosition.Middle
+                        }
+                        SidebarAppListItem(
+                            appInfo = appInfo,
+                            position = position,
+                            showDivider = !isLast,
+                            modifier = Modifier.animateItem(placementSpec = M3ExpressiveTokens.spatialFast<IntOffset>()),
+                            onCheckedChange = { isChecked ->
+                                if (isChecked) {
+                                    viewModel.addSidebarApp(appInfo)
+                                } else {
+                                    viewModel.deleteSidebarApp(appInfo)
+                                }
+                            }
+                        )
+                    }
+                }
             }
         }
     }
-}
-
-@Composable
-fun SidebarAppListItem(
-    appInfo: SidebarAppInfo,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    var appChecked = rememberSaveable { mutableStateOf(appInfo.isSidebarApp) }
-    SwitchPreference(
-        model = object : SwitchPreferenceModel {
-            override val title = appInfo.label
-            override val icon = @Composable {
-                Image(
-                    painter = rememberDrawablePainter(appInfo.icon),
-                    contentDescription = appInfo.label,
-                    modifier = Modifier.size(SettingsDimension.appIconItemSize)
-                )
-            }
-            override val checked = { appChecked.value }
-            override val onCheckedChange: (Boolean) -> Unit = {
-                appChecked.value = it
-                onCheckedChange(it)
-            }
-        },
-    )
-}
-
-@Composable
-fun SidebarSettingSwitch(
-    title: String,
-    summary: String?,
-    isChecked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    var myChecked = rememberSaveable { mutableStateOf(isChecked) }
-    SwitchPreference(
-        model = object : SwitchPreferenceModel {
-            override val title = title
-            override val summary = { summary ?: "" }
-            override val checked = { myChecked.value }
-            override val onCheckedChange: (Boolean) -> Unit = {
-                myChecked.value = it
-                onCheckedChange(it)
-            }
-        },
-    )
 }
